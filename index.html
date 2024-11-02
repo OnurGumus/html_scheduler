@@ -4,15 +4,48 @@
 <head>
   <meta charset="UTF-8">
   <title>Modular Draggable and Resizable Table</title>
-  <!-- Meta viewport for responsive design and enabling zoom -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Link to external JavaScript as module -->
-  <script src="index.js" type="module" defer></script>
+    <script>
+      // Function to fetch and inject the import map
+      async function loadImportMap(url) {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch import map: ${response.status} ${response.statusText}`);
+          }
+          const importMap = await response.json();
+          
+          // Create a script element with type="importmap"
+          const script = document.createElement('script');
+          script.type = 'importmap';
+          script.textContent = JSON.stringify(importMap);
+          document.head.appendChild(script);
+        } catch (error) {
+          console.error('Error loading import map:', error);
+        }
+      }
+      
+      // Load the import map before any modules are loaded
+      loadImportMap('https://cdn.jsdelivr.net/gh/OnurGumus/html_scheduler@main/importmap.json').then(() => {
+        // After import map is injected, load your main module
+        const moduleScript = document.createElement('script');
+        moduleScript.type = 'module';
+        moduleScript.src = 'index.js';
+        document.body.appendChild(moduleScript);
+      });
+    </script>
+    <!--
+    Use below for development and comment out the import map above
+     <script src="index.js" type="module" defer></script> 
+     -->
+  <!-- Load the module using the import map -->
+  <script type="module">
+    import "index.js";
+  </script>
 </head>
 
 <body>
-  <!-- Use the new web component -->
   <scheduler-table columns='["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]' rows="7"></scheduler-table>
 </body>
 

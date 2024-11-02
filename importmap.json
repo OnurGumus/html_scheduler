@@ -1,0 +1,14 @@
+{
+  "imports": {
+    "index.js": "https://cdn.jsdelivr.net/gh/OnurGumus/html_scheduler@main/index.js",
+    "./SchedulerTable.js": "https://cdn.jsdelivr.net/gh/OnurGumus/html_scheduler@main/SchedulerTable.js",
+    "./PointerHandler.js": "https://cdn.jsdelivr.net/gh/OnurGumus/html_scheduler@main/PointerHandler.js",
+    "./LayoutManager.js": "https://cdn.jsdelivr.net/gh/OnurGumus/html_scheduler@main/LayoutManager.js",
+    "./DragPreview.js": "https://cdn.jsdelivr.net/gh/OnurGumus/html_scheduler@main/DragPreview.js",
+    "./ContextMenu.js": "https://cdn.jsdelivr.net/gh/OnurGumus/html_scheduler@main/ContextMenu.js",
+    "./ResizeManager.js": "https://cdn.jsdelivr.net/gh/OnurGumus/html_scheduler@main/ResizeManager.js",
+    "./DragManager.js": "https://cdn.jsdelivr.net/gh/OnurGumus/html_scheduler@main/DragManager.js",
+    "./DraggableItem.js": "https://cdn.jsdelivr.net/gh/OnurGumus/html_scheduler@main/DraggableItem.js",
+    "./CreationManager.js": "https://cdn.jsdelivr.net/gh/OnurGumus/html_scheduler@main/CreationManager.js"
+  }
+}
