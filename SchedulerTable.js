@@ -86,7 +86,6 @@ export class SchedulerTable extends HTMLElement {
       .context-menu {
         position: absolute;
         background-color: #fff;
-        background-color: #fff;
         border: 1px solid #ccc;
         z-index: 1000;
         display: none;

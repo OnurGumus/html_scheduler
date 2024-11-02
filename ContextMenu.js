@@ -19,6 +19,37 @@ export class ContextMenu {
     });
   }
 
+  /**
+   * Initializes context menu action listeners.
+   * @param {TableInteractionManager} manager - The interaction manager instance.
+   */
+  initializeActions(manager) {
+    const deleteButton = this.menuElement.querySelector('#delete-item');
+    const editButton = this.menuElement.querySelector('#edit-item');
+
+    deleteButton.addEventListener('click', () => {
+      if (manager.currentContextItem) {
+        manager.removeItem(manager.currentContextItem.id);
+        this.hide();
+      }
+    });
+
+    editButton.addEventListener('click', () => {
+      if (manager.currentContextItem) {
+        const newContent = prompt("Edit item content:", manager.currentContextItem.content);
+        if (newContent !== null && newContent.trim() !== "") {
+          manager.editItem(manager.currentContextItem.id, newContent.trim());
+        }
+        this.hide();
+      }
+    });
+
+    // Hide context menu when clicking outside
+    document.addEventListener('click', () => {
+      this.hide();
+    });
+  }
+
   show(x, y) {
     if (!this.menuElement.parentElement) {
       console.error("ContextMenu.parentElement is null");

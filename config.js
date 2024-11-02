@@ -30,4 +30,6 @@ export const CONFIG = {
 
   // Other Configurations
   MAX_SPAN: 100,
+  
+  // Layout Manager Configurations (if any)
 };

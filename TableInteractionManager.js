@@ -1,7 +1,11 @@
-import { DraggableItem } from './DraggableItem.js';
 import { ContextMenu } from './ContextMenu.js';
-import { DragPreview } from './DragPreview.js';
 import { CONFIG } from './config.js';
+import { PointerHandler } from './PointerHandler.js';
+import { CreationManager } from './CreationManager.js';
+import { DragManager } from './DragManager.js';
+import { ResizeManager } from './ResizeManager.js';
+import { LayoutManager } from './LayoutManager.js';
+import { DraggableItem } from './DraggableItem.js'; // Added import
 
 /**
  * TableInteractionManager Class
@@ -19,8 +23,9 @@ export class TableInteractionManager {
 
     // Properties to track creation state
     this.creating = false;
-    this.createPreview = null;
-    this.createStart = { row: 0, col: 0 };
+
+    // Initialize longPressTimer
+    this.longPressTimer = null;
 
     // Fetch actual cell dimensions
     this.cellWidth = this.getCellWidth();
@@ -30,11 +35,16 @@ export class TableInteractionManager {
     this.itemHeight = this.getItemHeight();
 
     // Instance properties to track global state
-    this.activePointers = new Set();
     this.isDragging = false;
     this.isResizing = false;
     this.currentContextItem = null;
-    this.longPressTimer = null;
+
+    // Initialize Managers
+    this.pointerHandler = new PointerHandler(this);
+    this.creationManager = new CreationManager(this);
+    this.dragManager = new DragManager(this);
+    this.resizeManager = new ResizeManager(this);
+    this.layoutManager = new LayoutManager(this);
 
     this.init();
   }
@@ -83,226 +93,20 @@ export class TableInteractionManager {
    * Initializes event listeners and interactions.
    */
   init() {
-    const shadowDocument = this.container.ownerDocument;
+    // Initialize event listeners and interactions via managers
+    // PointerHandler and CreationManager are already initialized in their constructors
+    // Additional initialization if necessary
 
-    // Handle item creation via user interaction
-    this.table.tBodies[0].addEventListener("pointerdown", (e) => {
-      if (!e.isPrimary) return; // Only handle primary pointer
-      if (this.activePointers.size > 1) return; // Do not initiate creation if multiple pointers are active
-      if (this.isDragging || this.isResizing) return; // Prevent creation if dragging/resizing is active
-      const cell = e.target.closest("td");
-      if (!cell) return;
-
-      // Start creating a new item
-      this.creating = true;
-      this.createStart = this.getCellIndices(cell);
-
-      // Create a preview element
-      this.createPreview = new DragPreview(this.container);
-      const left = this.cellWidth * this.createStart.col + this.config.PADDING;
-      const top = this.headerHeight + this.cellHeight * this.createStart.row + this.config.PADDING;
-      this.createPreview.updatePosition(left, top);
-      this.createPreview.updateSize(this.itemWidth, this.itemHeight);
-      this.createPreview.setColor(this.config.COLORS.creatingItemBackground);
-
-      // Capture the pointer to continue receiving events even if the pointer leaves the target
-      cell.setPointerCapture(e.pointerId);
-    });
-
-    this.table.tBodies[0].addEventListener("pointermove", (e) => {
-      if (!this.creating || !this.createPreview) return;
-      if (this.activePointers.size > 1) {
-        // Cancel creation if multiple pointers are detected
-        this.cancelCreation();
-        return;
-      }
-      if (this.isDragging || this.isResizing) {
-        // Cancel creation if dragging/resizing is active
-        this.cancelCreation();
-        return;
-      }
-      const containerRect = this.container.getBoundingClientRect();
-      const mouseX = e.clientX - containerRect.left;
-      const mouseY = e.clientY - containerRect.top;
-
-      let currentCol = Math.floor(mouseX / this.cellWidth);
-      let currentRow = Math.floor((mouseY - this.headerHeight) / this.cellHeight);
-
-      // Clamp to table bounds
-      currentCol = Math.max(0, Math.min(currentCol, this.totalCols - 1));
-      currentRow = Math.max(0, Math.min(currentRow, this.totalRows - 1));
-
-      const span = currentRow - this.createStart.row + 1;
-      const clampedSpan = Math.min(Math.max(span, 1), this.config.MAX_SPAN); // Prevent excessive spans
-
-      // Update preview size based on span
-      const newHeight = this.cellHeight * clampedSpan - this.config.PADDING * 2;
-      this.createPreview.updateSize(this.itemWidth, newHeight);
-    });
-
-    this.table.tBodies[0].addEventListener("pointerup", (e) => {
-      if (!this.creating || !this.createPreview) return;
-      if (!e.isPrimary) return; // Only handle primary pointer
-      this.creating = false;
-
-      // Determine final span
-      const previewHeight = parseInt(this.createPreview.preview.style.blockSize);
-      let finalSpan = Math.round((previewHeight + this.config.PADDING * 2) / this.cellHeight);
-
-      finalSpan = Math.max(1, finalSpan);
-      finalSpan = Math.min(finalSpan, this.totalRows - this.createStart.row);
-
-      // Create the draggable item
-      this.addItem(
-        this.createStart.row,
-        this.createStart.col,
-        finalSpan,
-        "New Task"
-      );
-
-      // Remove the preview
-      this.createPreview.remove();
-      this.createPreview = null;
-    });
-
-    // Handle pointer events on the shadow root to track active pointers
-    shadowDocument.addEventListener("pointerdown", (e) => {
-      this.activePointers.add(e.pointerId);
-      // Hide context menu if clicking outside
-      if (!e.target.closest('.draggable-item')) {
-        this.contextMenu.hide();
-        this.currentContextItem = null;
-      }
-    });
-
-    shadowDocument.addEventListener("pointerup", (e) => {
-      this.activePointers.delete(e.pointerId);
-      // If a drag, resize, or creation is in progress and multiple pointers are active, cancel the action
-      if (this.activePointers.size > 1) {
-        if (this.isDragging || this.isResizing || this.creating) {
-          this.cancelAll();
-        }
-      }
-    });
-
-    shadowDocument.addEventListener("pointercancel", (e) => {
-      this.activePointers.delete(e.pointerId);
-      // Similar cancellation logic if needed
-      if (this.isDragging || this.isResizing || this.creating) {
-        this.cancelAll();
-      }
-    });
-
-    // Ensure the table listens to pointermove and pointerup events outside the table during creation
-    shadowDocument.addEventListener("pointermove", (e) => {
-      if (!this.creating || !this.createPreview) return;
-      if (this.activePointers.size > 1) {
-        // Cancel creation if multiple pointers are detected
-        this.cancelCreation();
-        return;
-      }
-      if (this.isDragging || this.isResizing) {
-        // Cancel creation if dragging/resizing is active
-        this.cancelCreation();
-        return;
-      }
-      const containerRect = this.container.getBoundingClientRect();
-      const mouseX = e.clientX - containerRect.left;
-      const mouseY = e.clientY - containerRect.top;
-
-      let currentCol = Math.floor(mouseX / this.cellWidth);
-      let currentRow = Math.floor((mouseY - this.headerHeight) / this.cellHeight);
-
-      // Clamp to table bounds
-      currentCol = Math.max(0, Math.min(currentCol, this.totalCols - 1));
-      currentRow = Math.max(0, Math.min(currentRow, this.totalRows - 1));
-
-      const span = currentRow - this.createStart.row + 1;
-      const clampedSpan = Math.min(Math.max(span, 1), this.config.MAX_SPAN); // Prevent excessive spans
-
-      // Update preview size based on span
-      const newHeight = this.cellHeight * clampedSpan - this.config.PADDING * 2;
-      this.createPreview.updateSize(this.itemWidth, newHeight);
-    });
-
-    shadowDocument.addEventListener("pointerup", (e) => {
-      if (!this.creating || !this.createPreview) return;
-      if (!e.isPrimary) return; // Only handle primary pointer
-      this.creating = false;
-
-      // Determine final span
-      const previewHeight = parseInt(this.createPreview.preview.style.blockSize);
-      let finalSpan = Math.round((previewHeight + this.config.PADDING * 2) / this.cellHeight);
-
-      finalSpan = Math.max(1, finalSpan);
-      finalSpan = Math.min(finalSpan, this.totalRows - this.createStart.row);
-
-      // Create the draggable item
-      this.addItem(
-        this.createStart.row,
-        this.createStart.col,
-        finalSpan,
-        "New Task"
-      );
-
-      // Remove the preview
-      this.createPreview.remove();
-      this.createPreview = null;
-    });
-
-    // Handle context menu actions
-    this.initializeContextMenu();
+    // Initialize context menu actions
+    this.contextMenu.initializeActions(this);
   }
 
   /**
-   * Initializes the context menu event listeners.
+   * Updates the creation preview based on pointer movement.
+   * Moved from CreationManager.
    */
-  initializeContextMenu() {
-    // Handle Delete action
-    const deleteButton = this.contextMenu.menuElement.querySelector('#delete-item');
-    deleteButton.addEventListener('click', (e) => {
-      e.stopPropagation(); // Prevent event from bubbling up
-      if (this.currentContextItem) {
-        // Remove the item by its ID
-        this.removeItem(this.currentContextItem.id);
-        // Hide the context menu
-        this.contextMenu.hide();
-        this.currentContextItem = null;
-      }
-    });
-
-    // Handle Edit action
-    const editButton = this.contextMenu.menuElement.querySelector('#edit-item');
-    editButton.addEventListener('click', (e) => {
-      e.stopPropagation(); // Prevent event from bubbling up
-      if (this.currentContextItem) {
-        const newContent = prompt("Enter new content:", this.currentContextItem.content);
-        if (newContent !== null && newContent.trim() !== "") {
-          this.currentContextItem.updateContent(newContent.trim());
-        }
-        // Hide the context menu
-        this.contextMenu.hide();
-        this.currentContextItem = null;
-      }
-    });
-
-    const shadowDocument = this.container.ownerDocument;
-
-    // Hide context menu when pressing the Escape key
-    shadowDocument.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        this.contextMenu.hide();
-        this.currentContextItem = null;
-      }
-    });
-
-    // Hide context menu when clicking outside
-    shadowDocument.addEventListener('click', (e) => {
-      if (!e.target.closest('.context-menu')) {
-        this.contextMenu.hide();
-        this.currentContextItem = null;
-      }
-    });
+  updateCreationPreview(e) {
+    this.creationManager.updateCreation(e);
   }
 
   /**
@@ -358,7 +162,7 @@ export class TableInteractionManager {
     // Remove from items array
     this.items.splice(itemIndex, 1);
     // Recalculate layout
-    this.recalculateLayout();
+    this.layoutManager.recalculateLayout();
   }
 
   /**
@@ -395,7 +199,7 @@ export class TableInteractionManager {
    */
   registerItem(item) {
     this.items.push(item);
-    this.recalculateLayout();
+    this.layoutManager.recalculateLayout();
   }
 
   /**
@@ -404,7 +208,7 @@ export class TableInteractionManager {
   removeAllItems() {
     this.items.forEach(item => item.element.remove());
     this.items = [];
-    this.recalculateLayout();
+    this.layoutManager.recalculateLayout();
   }
 
   /**
@@ -416,71 +220,6 @@ export class TableInteractionManager {
     const rowIndex = cell.parentElement.sectionRowIndex; // Adjusted for shadow DOM
     const colIndex = cell.cellIndex;
     return { row: rowIndex, col: colIndex };
-  }
-
-  /**
-   * Recalculates the layout to handle overlapping items.
-   */
-  recalculateLayout() {
-    // Reset all items' sizes and positions
-    this.items.forEach(item => {
-      item.element.style.inlineSize = `${this.itemWidth}px`;
-      const left = this.cellWidth * item.col + this.config.PADDING;
-      item.element.style.insetInlineStart = `${left}px`;
-    });
-
-    // Adjust positions for overlapping items
-    for (let col = 0; col < this.totalCols; col++) {
-      const itemsInCol = this.items.filter(item => item.col === col);
-
-      // Sort items by starting row
-      itemsInCol.sort((a, b) => a.row - b.row);
-
-      // Groups of overlapping items
-      let groups = [];
-
-      itemsInCol.forEach(item => {
-        let placed = false;
-
-        for (let group of groups) {
-          if (item.row < group.endRow) {
-            group.items.push(item);
-            group.endRow = Math.max(group.endRow, item.row + item.span);
-            placed = true;
-            break;
-          }
-        }
-
-        if (!placed) {
-          groups.push({
-            items: [item],
-            endRow: item.row + item.span
-          });
-        }
-      });
-
-      // Assign layout for each group
-      groups.forEach(group => {
-        this.assignLayout(group.items, col);
-      });
-    }
-  }
-
-  assignLayout(items, col) {
-    const numItems = items.length;
-    if (numItems === 0) return;
-
-    const cellWidth = this.cellWidth;
-    const padding = this.config.PADDING;
-    const margin = this.config.MARGIN;
-    const availableWidth = cellWidth - 2 * padding - margin * (numItems - 1);
-    const itemWidth = availableWidth / numItems;
-
-    items.forEach((item, index) => {
-      const left = cellWidth * col + padding + (itemWidth + margin) * index;
-      item.element.style.inlineSize = `${itemWidth}px`;
-      item.element.style.insetInlineStart = `${left}px`;
-    });
   }
 
   /**
@@ -498,29 +237,23 @@ export class TableInteractionManager {
    * Cancels any ongoing operations like dragging or resizing.
    */
   cancelAll() {
-    if (this.isDragging || this.isResizing) {
-      // For simplicity, remove all previews and reset flags
-      this.items.forEach(item => {
-        if (item.dragPreview) {
-          item.dragPreview.remove();
-          item.dragPreview = null;
-          item.isDragging = false;
-        }
-        if (item.resizePreview) {
-          item.resizePreview.remove();
-          item.resizePreview = null;
-          item.isResizing = false;
-        }
-      });
-      this.isDragging = false;
-      this.isResizing = false;
+    if (this.isDragging) {
+      this.dragManager.endDrag();
     }
-    if (this.createPreview) {
-      this.createPreview.remove();
-      this.createPreview = null;
-      this.creating = false;
+    if (this.isResizing) {
+      this.resizeManager.endResize();
+    }
+    if (this.creationManager.creating) {
+      this.creationManager.cancelCreation();
     }
     this.contextMenu.hide();
     this.currentContextItem = null;
+  }
+
+  /**
+   * Recalculates the layout by delegating to the layout manager.
+   */
+  recalculateLayout() {
+    this.layoutManager.recalculateLayout();
   }
 }
