@@ -50,11 +50,13 @@ export class CreationManager {
     this.createStart = this.manager.getCellIndices(cell);
 
     this.createPreview = new DragPreview(this.manager.container);
-    const left = this.manager.cellWidth * this.createStart.col + this.manager.config.PADDING;
-    const top = this.manager.headerHeight + this.manager.cellHeight * this.createStart.row + this.manager.config.PADDING;
+    const styles = getComputedStyle(this.manager.container);
+    const padding = parseInt(styles.getPropertyValue('--padding')) || 5;
+    const left = this.manager.cellWidth * this.createStart.col + padding;
+    const top = this.manager.headerHeight + this.manager.cellHeight * this.createStart.row + padding;
     this.createPreview.updatePosition(left, top);
     this.createPreview.updateSize(this.manager.itemWidth, this.manager.itemHeight);
-    this.createPreview.setColor(this.manager.config.COLORS.creatingItemBackground);
+    this.createPreview.setColor(getComputedStyle(this.manager.container).getPropertyValue('--creating-item-background') || 'rgba(76, 175, 80, 0.3)');
   }
 
   updateCreation(e) {
@@ -69,15 +71,18 @@ export class CreationManager {
     currentRow = Math.max(0, Math.min(currentRow, this.manager.totalRows - 1));
 
     const span = currentRow - this.createStart.row + 1;
-    const clampedSpan = Math.min(Math.max(span, 1), this.manager.config.MAX_SPAN);
+    // Removed MAX_SPAN
+    const clampedSpan = Math.min(Math.max(span, 1), this.manager.totalRows - this.createStart.row);
 
-    const newHeight = this.manager.cellHeight * clampedSpan - this.manager.config.PADDING * 2;
+    const styles = getComputedStyle(this.manager.container);
+    const padding = parseInt(styles.getPropertyValue('--padding')) || 5;
+    const newHeight = this.manager.cellHeight * clampedSpan - padding * 2;
     this.createPreview.updateSize(this.manager.itemWidth, newHeight);
   }
 
   finalizeCreation() {
     const previewHeight = parseInt(this.createPreview.preview.style.blockSize);
-    let finalSpan = Math.round((previewHeight + this.manager.config.PADDING * 2) / this.manager.cellHeight);
+    let finalSpan = Math.round((previewHeight + parseInt(getComputedStyle(this.manager.container).getPropertyValue('--padding')) * 2) / this.manager.cellHeight);
 
     finalSpan = Math.max(1, finalSpan);
     finalSpan = Math.min(finalSpan, this.manager.totalRows - this.createStart.row);

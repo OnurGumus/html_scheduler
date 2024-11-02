@@ -34,6 +34,14 @@ export class DragManager {
     this.dragOffset.inline = e.clientX - rect.left;
     this.dragOffset.block = e.clientY - rect.top;
 
+    // Retrieve padding and colors from CSS variables instead of CONFIG
+    const styles = getComputedStyle(this.manager.container);
+    const padding = parseInt(styles.getPropertyValue('--padding')) || 5;
+    const draggableColor = styles.getPropertyValue('--draggable-color').trim();
+
+    // Example usage of draggableColor
+    this.currentItem.element.style.backgroundColor = draggableColor;
+
     // Create a drag preview
     this.dragPreview = new DragPreview(this.manager.container);
     this.dragPreview.updatePosition(
@@ -41,12 +49,12 @@ export class DragManager {
       rect.top - containerRect.top
     );
 
-    const previewHeight = this.manager.cellHeight * item.span - this.manager.config.PADDING * 2;
+    const previewHeight = this.manager.cellHeight * item.span - padding * 2;
     this.dragPreview.updateSize(
       this.manager.itemWidth,
       previewHeight
     );
-    this.dragPreview.setColor(this.manager.config.COLORS.dragPreviewBackground);
+    this.dragPreview.setColor(styles.getPropertyValue('--drag-preview-background').trim());
 
     // Add global pointermove and pointerup listeners
     this.globalPointerMove = this.handleDragMove;
@@ -119,6 +127,20 @@ export class DragManager {
     this.manager.container.ownerDocument.removeEventListener('pointerup', this.globalPointerUp);
     this.manager.container.ownerDocument.removeEventListener('pointercancel', this.endDrag);
 
-    this.manager.layoutManager.recalculateLayout();
+    // Correctly call recalculateLayout
+    this.manager.recalculateLayout();
+  }
+
+  /**
+   * Apply drag style to the dragged item.
+   */
+  applyDragStyle() {
+    const styles = getComputedStyle(this.manager.container);
+    const draggableColor = styles.getPropertyValue('--draggable-color').trim();
+    
+    // Apply draggable color to the dragged item
+    if (this.currentItem) {
+      this.currentItem.element.style.backgroundColor = draggableColor;
+    }
   }
 }

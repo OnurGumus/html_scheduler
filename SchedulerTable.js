@@ -1,5 +1,4 @@
 import { TableInteractionManager } from './TableInteractionManager.js';
-import { CONFIG } from './config.js';
 
 /**
  * SchedulerTable Class
@@ -10,10 +9,29 @@ export class SchedulerTable extends HTMLElement {
     super();
     const shadow = this.attachShadow({ mode: 'open' });
 
-    // Encapsulated CSS
+    // Encapsulated CSS with CSS variables
     const style = document.createElement('style');
     style.textContent = `
-      /* Styles moved from index.css */
+      /* CSS Variables for configuration */
+      :host {
+        --padding: 5px;
+        --border-width: 1px;
+        --border-radius: 4px;
+        --resize-handle-size: 15px;
+        --margin: 10px;
+        --draggable-color: #4caf50;
+        --draggable-text-color: #fff;
+        --resize-handle-background: #fff;
+        --resize-handle-border: #000;
+        --drag-preview-background: rgba(76, 175, 80, 0.5);
+        --drag-preview-border-color: #333;
+        --creating-item-background: rgba(76, 175, 80, 0.3);
+        --context-menu-background: #fff;
+        --context-menu-border: #ccc;
+        --context-menu-hover: #f0f0f0;
+        --context-menu-focus: #e0e0e0;
+      }
+
       .table-container {
         position: relative;
         overflow: hidden;
@@ -39,10 +57,10 @@ export class SchedulerTable extends HTMLElement {
       /* Draggable Item Styles */
       .draggable-item {
         position: absolute;
-        background-color: #4caf50;
-        color: #fff;
-        border-radius: 4px;
-        padding: 5px;
+        background-color: var(--draggable-color);
+        color: var(--draggable-text-color);
+        border-radius: var(--border-radius);
+        padding: var(--padding);
         box-sizing: border-box;
         display: flex;
         justify-content: space-between;
@@ -58,10 +76,10 @@ export class SchedulerTable extends HTMLElement {
 
       /* Resize Handle Styles */
       .resize-handle {
-        width: 15px;
-        height: 15px;
-        background-color: #fff;
-        border: 1px solid #000;
+        width: var(--resize-handle-size);
+        height: var(--resize-handle-size);
+        background-color: var(--resize-handle-background);
+        border: 1px solid var(--resize-handle-border);
         border-radius: 3px; /* Changed from 50% to 3px for a square handle */
         cursor: ns-resize;
         flex-shrink: 0;
@@ -74,9 +92,9 @@ export class SchedulerTable extends HTMLElement {
       /* Drag Preview Styles */
       .drag-preview {
         position: absolute;
-        background-color: rgba(76, 175, 80, 0.5);
-        border: 1px dashed #333;
-        border-radius: 4px;
+        background-color: var(--drag-preview-background);
+        border: 1px dashed var(--drag-preview-border-color);
+        border-radius: var(--border-radius);
         pointer-events: none;
         box-sizing: border-box; /* Ensure box-sizing includes padding and border */
         /* Remove any max-width or width constraints */
@@ -85,8 +103,8 @@ export class SchedulerTable extends HTMLElement {
       /* Context Menu Styles */
       .context-menu {
         position: absolute;
-        background-color: #fff;
-        border: 1px solid #ccc;
+        background-color: var(--context-menu-background);
+        border: 1px solid var(--context-menu-border);
         z-index: 1000;
         display: none;
         flex-direction: column;
@@ -110,7 +128,7 @@ export class SchedulerTable extends HTMLElement {
 
       .context-menu-item:hover,
       .context-menu-item:focus {
-        background-color: #f0f0f0;
+        background-color: var(--context-menu-hover);
       }
 
       /* Additional Styles */
@@ -176,6 +194,16 @@ export class SchedulerTable extends HTMLElement {
 
   connectedCallback() {
     // Additional setup if necessary
+  }
+
+  static get observedAttributes() {
+    return ['long-press-duration'];
+  }
+
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (name === 'long-press-duration') {
+      this.interactionManager.setLongPressDuration(parseInt(newValue, 10) || 500);
+    }
   }
 
   // ...existing methods...

@@ -36,15 +36,19 @@ export class DraggableItem {
     this.col = col;
     this.span = span;
 
-    // Calculate positions based on actual cell dimensions
-    const left = this.manager.cellWidth * col + this.manager.config.PADDING;
-    const top = this.manager.headerHeight + this.manager.cellHeight * row + this.manager.config.PADDING;
-    const height = this.manager.cellHeight * span - this.manager.config.PADDING * 2;
+    // Calculate positions based on actual cell dimensions and CSS variables
+    const styles = getComputedStyle(this.manager.container);
+    const padding = parseInt(styles.getPropertyValue('--padding')) || 5;
+
+    const left = this.manager.cellWidth * col + padding;
+    const top = this.manager.headerHeight + this.manager.cellHeight * row + padding;
+    const height = this.manager.cellHeight * span - padding * 2;
+    const itemWidth = this.manager.itemWidth;
 
     this.element.style.insetInlineStart = `${left}px`;
     this.element.style.insetBlockStart = `${top}px`;
     this.element.style.blockSize = `${height}px`;
-    this.element.style.inlineSize = `${this.manager.itemWidth}px`;
+    this.element.style.inlineSize = `${itemWidth}px`;
 
     this.element.setAttribute("data-row", row);
     this.element.setAttribute("data-col", col);
@@ -96,7 +100,7 @@ export class DraggableItem {
       if (e.pointerType === 'touch') {
         this.manager.longPressTimer = setTimeout(() => {
           this.showContextMenu(e.clientX, e.clientY);
-        }, this.manager.config.LONG_PRESS_DURATION);
+        }, this.manager.longPressDuration); // Changed from this.manager.config.LONG_PRESS_DURATION to this.manager.longPressDuration
       }
     });
 

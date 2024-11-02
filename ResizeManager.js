@@ -43,7 +43,18 @@ export class ResizeManager {
       item.element.offsetWidth,
       item.element.offsetHeight
     );
-    this.resizePreview.setColor(this.manager.config.COLORS.dragPreviewBackground);
+
+    // Retrieve colors from CSS variables instead of CONFIG
+    const styles = getComputedStyle(this.manager.container);
+    const resizeHandleBorderColor = styles.getPropertyValue('--resize-handle-border').trim();
+    const resizeHandleBackground = styles.getPropertyValue('--resize-handle-background').trim();
+
+    // Apply the retrieved colors
+    this.currentItem.element.style.borderColor = resizeHandleBorderColor;
+    const resizeHandle = this.currentItem.element.querySelector('.resize-handle');
+    if (resizeHandle) {
+      resizeHandle.style.backgroundColor = resizeHandleBackground;
+    }
 
     // Add global pointermove and pointerup listeners
     this.globalPointerMove = this.handleResizeMove;

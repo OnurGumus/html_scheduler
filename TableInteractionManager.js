@@ -1,5 +1,4 @@
 import { ContextMenu } from './ContextMenu.js';
-import { CONFIG } from './config.js';
 import { PointerHandler } from './PointerHandler.js';
 import { CreationManager } from './CreationManager.js';
 import { DragManager } from './DragManager.js';
@@ -15,7 +14,6 @@ export class TableInteractionManager {
   constructor(container, table, contextMenuElement) {
     this.container = container;
     this.table = table;
-    this.config = CONFIG;
     this.contextMenu = new ContextMenu(contextMenuElement);
     this.totalRows = this.table.tBodies[0].rows.length;
     this.totalCols = this.table.tHead.rows[0].cells.length;
@@ -39,6 +37,9 @@ export class TableInteractionManager {
     this.isResizing = false;
     this.currentContextItem = null;
 
+    // Long press duration (default 500ms)
+    this.longPressDuration = 500;
+
     // Initialize Managers
     this.pointerHandler = new PointerHandler(this);
     this.creationManager = new CreationManager(this);
@@ -47,6 +48,14 @@ export class TableInteractionManager {
     this.layoutManager = new LayoutManager(this);
 
     this.init();
+  }
+
+  /**
+   * Sets the long press duration.
+   * @param {number} duration - Duration in milliseconds.
+   */
+  setLongPressDuration(duration) {
+    this.longPressDuration = duration;
   }
 
   /**
@@ -74,19 +83,23 @@ export class TableInteractionManager {
   }
 
   /**
-   * Fetches the default draggable item width.
+   * Fetches the default draggable item width from CSS variables.
    */
   getItemWidth() {
-    // Calculate itemWidth based on cell width and padding
-    return this.cellWidth - this.config.PADDING * 2;
+    const styles = getComputedStyle(this.container);
+    const padding = parseInt(styles.getPropertyValue('--padding')) || 5;
+    const cellWidth = this.cellWidth;
+    return cellWidth - padding * 2;
   }
 
   /**
-   * Fetches the default draggable item height.
+   * Fetches the default draggable item height from CSS variables.
    */
   getItemHeight() {
-    // Calculate itemHeight based on cell height and padding
-    return this.cellHeight - this.config.PADDING * 2;
+    const styles = getComputedStyle(this.container);
+    const padding = parseInt(styles.getPropertyValue('--padding')) || 5;
+    const cellHeight = this.cellHeight;
+    return cellHeight - padding * 2;
   }
 
   /**
@@ -127,6 +140,7 @@ export class TableInteractionManager {
       console.error("Invalid column index");
       return null;
     }
+    // Removed MAX_SPAN validation if not needed
     if (span < 1 || (row + span) > this.totalRows) {
       console.error("Invalid span");
       return null;
